@@ -1,26 +1,19 @@
 from app.services.document.parser import extract_text
 from app.services.document.chunker import chunk_text
+from app.services.document.cleaner import clean_text
 from app.services.embeddings.embedder import embed_text, embed_query
 from app.services.embeddings.vector_store import store_embeddings, retrieve_chunks
+from app.services.quiz.generator import generate_quiz
+from app.services.flashcards.generator import generate_flashcards
 
-file_path = "data/uploads/sample.pdf"
-
-text = extract_text(file_path)
-print("\n--- Extracted Text ---\n")
-print(text[:500])
-
+text = extract_text("data/uploads/sample.pdf")
+text = clean_text(text)
 chunks = chunk_text(text)
-print("\n--- Chunks ---\n")
-print(chunks[:3])
-
 embeddings = embed_text(chunks)
 store_embeddings(chunks, embeddings)
 
-query = "What is this document about?"
-query_embedding = embed_query(query)
+q_emb = embed_query("What is garbage collection?")
+results = retrieve_chunks(q_emb)
 
-results = retrieve_chunks(query_embedding)
-
-print("\n--- Retrieved Chunks ---\n")
-for r in results:
-    print("-", r)
+print(generate_quiz(results))
+print(generate_flashcards(results))
