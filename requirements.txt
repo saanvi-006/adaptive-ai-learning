@@ -5,4 +5,8 @@ sentence-transformers
 faiss-cpu
 numpy
 python-multipart
-groq
+
+
+scikit-learn
+pandas
+google-genai
