@@ -1,23 +1,37 @@
-from app.services.document.parser import extract_text
-from app.services.document.chunker import chunk_text
-from app.services.document.cleaner import clean_text
-from app.services.embeddings.embedder import embed_text, embed_query
-from app.services.embeddings.vector_store import store_embeddings, retrieve_chunks
-from app.services.quiz.generator import generate_quiz
-from app.services.flashcards.generator import generate_flashcards
-from app.services.quiz.variation import generate_variations
+from app.core.adaptive.engine import update_user_performance, adapt_response, get_user_performance, reset_user
 
-text = extract_text("data/uploads/sample.pdf")
-text = clean_text(text)
-chunks = chunk_text(text)
-embeddings = embed_text(chunks)
-store_embeddings(chunks, embeddings)
+def run_engine_test():
+    user_id = "test_user"
 
-q_emb = embed_query("What is garbage collection?")
-results = retrieve_chunks(q_emb)
-print("Generated Quiz:")
-print(generate_quiz(results))
-print("Generated Flashcards:")
-print(generate_flashcards(results))
-print("Generated Variations:")
-print(generate_variations(generate_quiz(results)))
+    print("\n===== ENGINE TEST =====\n")
+
+    # Reset user (clean test)
+    reset_user(user_id)
+
+    # Step 1: Simulate performance
+    update_user_performance(user_id, False, "conceptual")  # wrong
+    update_user_performance(user_id, False, "conceptual")  # wrong
+    update_user_performance(user_id, True,  "factual")     # correct
+
+    # Step 2: Print stats
+    stats = get_user_performance(user_id)
+
+    print("STATS:")
+    for k, v in stats.items():
+        print(f"{k}: {v}")
+
+    # Step 3: Test response adaptation
+    answer = "Method overloading improves code readability."
+
+    adapted = adapt_response(
+        user_id=user_id,
+        intent=stats["weak_intents"][0],
+        answer=answer
+    )
+
+    print("\nADAPTED RESPONSE:")
+    print(adapted)
+
+
+if __name__ == "__main__":
+    run_engine_test()

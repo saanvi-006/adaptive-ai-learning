@@ -2,8 +2,10 @@
 Intent Classification — Inference Module
 app/core/intent/predictor.py
 
-Loads the trained artefact once (module-level singleton) and exposes
-`predict_intent(query)` for use by the router and any other caller.
+Classifies CHAT queries into: "factual" or "conceptual".
+
+"learning" is NOT a chat intent. Quiz sessions are triggered explicitly
+by the user pressing "Start Quiz" — not by intent classification.
 """
 
 import logging
@@ -14,13 +16,14 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Path resolution — works from any working directory
+# Path resolution
 # ---------------------------------------------------------------------------
-_HERE = Path(__file__).resolve().parent          # …/app/core/intent/
-_PROJECT_ROOT = _HERE.parents[2]                 # …/backend/
-_MODEL_PATH = _PROJECT_ROOT / "models" / "intent_classifier.pkl"
+_HERE         = Path(__file__).resolve().parent    # …/app/core/intent/
+_PROJECT_ROOT = _HERE.parents[2]                   # …/backend/
+_MODEL_PATH   = _PROJECT_ROOT / "models" / "intent_classifier.pkl"
 
-IntentLabel = Literal["factual", "conceptual", "learning"]
+# Only two valid chat intents
+IntentLabel = Literal["factual", "conceptual"]
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +36,7 @@ class _ModelRegistry:
     def __init__(self) -> None:
         self._vectorizer = None
         self._classifier = None
-        self._loaded = False
+        self._loaded     = False
 
     def _load(self, model_path: Path = _MODEL_PATH) -> None:
         if self._loaded:
@@ -42,8 +45,7 @@ class _ModelRegistry:
         if not model_path.exists():
             raise FileNotFoundError(
                 f"Model artefact not found at '{model_path}'. "
-                "Run `python -m app.core.intent.model` from the project root "
-                "to train and save the model first."
+                "Run `python -m app.core.intent.model` to train the model first."
             )
 
         logger.info("Loading intent classifier from %s", model_path)
@@ -60,10 +62,9 @@ class _ModelRegistry:
 
         self._vectorizer = bundle["vectorizer"]
         self._classifier = bundle["classifier"]
-        self._loaded = True
+        self._loaded     = True
         logger.info("Intent classifier loaded successfully")
 
-    # Public accessors — trigger load on first access
     @property
     def vectorizer(self):
         self._load()
@@ -84,24 +85,18 @@ _registry = _ModelRegistry()
 
 def predict_intent(query: str) -> IntentLabel:
     """
-    Classify *query* into one of three intent categories.
+    Classify a CHAT query into "factual" or "conceptual".
+
+    Quiz sessions are not classified — they are triggered explicitly
+    by the user and handled by quiz_engine.py.
 
     Parameters
     ----------
-    query : str
-        Raw user query string.
+    query : Raw user query string.
 
     Returns
     -------
-    str
-        One of ``"factual"``, ``"conceptual"``, or ``"learning"``.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the model artefact has not been created yet.
-    ValueError
-        If *query* is empty or not a string.
+    str  "factual" or "conceptual".
     """
     if not isinstance(query, str):
         raise ValueError(f"query must be a str, got {type(query).__name__!r}")
@@ -110,8 +105,17 @@ def predict_intent(query: str) -> IntentLabel:
         raise ValueError("query must not be empty")
 
     normalised = query.lower()
-    features = _registry.vectorizer.transform([normalised])
+    features   = _registry.vectorizer.transform([normalised])
     label: str = _registry.classifier.predict(features)[0]
+
+    # Safety net: if old model still returns "learning", remap to conceptual
+    if label == "learning":
+        logger.warning(
+            "predict_intent: got deprecated label 'learning' — "
+            "remapping to 'conceptual'. Re-train the model to fix this."
+        )
+        label = "conceptual"
+
     logger.debug("predict_intent(%r) -> %r", query, label)
     return label  # type: ignore[return-value]
 
@@ -122,8 +126,7 @@ def predict_intent_with_confidence(query: str) -> dict:
 
     Returns
     -------
-    dict
-        ``{"intent": str, "confidence": float, "scores": dict[str, float]}``
+    dict  {"intent": str, "confidence": float, "scores": dict[str, float]}
     """
     if not isinstance(query, str):
         raise ValueError(f"query must be a str, got {type(query).__name__!r}")
@@ -132,17 +135,25 @@ def predict_intent_with_confidence(query: str) -> dict:
         raise ValueError("query must not be empty")
 
     normalised = query.lower()
-    features = _registry.vectorizer.transform([normalised])
+    features   = _registry.vectorizer.transform([normalised])
     label: str = _registry.classifier.predict(features)[0]
-    proba = _registry.classifier.predict_proba(features)[0]
-    classes = _registry.classifier.classes_
+    proba      = _registry.classifier.predict_proba(features)[0]
+    classes    = _registry.classifier.classes_
 
-    scores = {cls: round(float(p), 4) for cls, p in zip(classes, proba)}
-    confidence = scores[label]
+    # Safety net for old model artefacts
+    if label == "learning":
+        logger.warning(
+            "predict_intent_with_confidence: deprecated label 'learning' — "
+            "remapping to 'conceptual'. Re-train the model to fix this."
+        )
+        label = "conceptual"
+
+    scores     = {cls: round(float(p), 4) for cls, p in zip(classes, proba)}
+    confidence = scores.get(label, 0.0)
 
     logger.debug(
         "predict_intent_with_confidence(%r) -> %r (%.2f%%)",
-        query, label, confidence * 100
+        query, label, confidence * 100,
     )
     return {"intent": label, "confidence": confidence, "scores": scores}
 
@@ -155,7 +166,6 @@ if __name__ == "__main__":
     samples = [
         "Why do plants need sunlight?",
         "What is photosynthesis?",
-        "Generate quiz on photosynthesis",
     ]
     for s in samples:
         print(f"{s!r:55s}  →  {predict_intent(s)}")
