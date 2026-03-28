@@ -1,17 +1,37 @@
+import os
 from fastapi import FastAPI
-from app.api.routes import upload, query
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.routes import upload, query, explain , summarize
 
-# Create FastAPI app
 app = FastAPI(
-    title="Adaptive AI Backend",
+    title="BrainLoop AI Backend",
     version="1.0.0"
 )
 
-# Include routers
-app.include_router(upload.router)
-app.include_router(query.router)
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:8080",
+    "https://id-preview--35605c8b-1541-4a1a-9885-f30a2373d7e5.lovable.app"
+]
 
-# Root endpoint (for testing)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(upload.router, tags=["Documents"])
+app.include_router(query.router, tags=["AI Interaction"])
+app.include_router(explain.router, tags=["AI Interaction"])
+app.include_router(summarize.router, tags=["AI Interaction"])
+
 @app.get("/")
 def home():
-    return {"message": "Backend is running 🚀"}
+    return {"message": "BrainLoop backend is running 🚀"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
