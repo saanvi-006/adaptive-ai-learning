@@ -1,37 +1,28 @@
-from app.core.adaptive.engine import update_user_performance, adapt_response, get_user_performance, reset_user
+from app.core.rag.pipeline import get_all_chunks
+from app.core.adaptive.flashcard_engine import generate_flashcards
 
-def run_engine_test():
-    user_id = "test_user"
+def run_flashcard_test():
+    source = "data/uploads/sample.pdf"  # your PDF path
 
-    print("\n===== ENGINE TEST =====\n")
+    print("\n===== FLASHCARD TEST =====\n")
 
-    # Reset user (clean test)
-    reset_user(user_id)
+    # Step 1: Get chunks
+    chunks = get_all_chunks(source)
 
-    # Step 1: Simulate performance
-    update_user_performance(user_id, False, "conceptual")  # wrong
-    update_user_performance(user_id, False, "conceptual")  # wrong
-    update_user_performance(user_id, True,  "factual")     # correct
+    print(f"Chunks loaded: {len(chunks)}")
 
-    # Step 2: Print stats
-    stats = get_user_performance(user_id)
+    # Step 2: Generate flashcards
+    flashcards = generate_flashcards(chunks, target_count=5)
 
-    print("STATS:")
-    for k, v in stats.items():
-        print(f"{k}: {v}")
+    # Step 3: Print results
+    print(f"\nTotal Flashcards Generated: {len(flashcards)}\n")
 
-    # Step 3: Test response adaptation
-    answer = "Method overloading improves code readability."
-
-    adapted = adapt_response(
-        user_id=user_id,
-        intent=stats["weak_intents"][0],
-        answer=answer
-    )
-
-    print("\nADAPTED RESPONSE:")
-    print(adapted)
+    for i, card in enumerate(flashcards, 1):
+        print(f"Card {i}")
+        print("Q:", card["question"])
+        print("A:", card["answer"])
+        print("-" * 50)
 
 
 if __name__ == "__main__":
-    run_engine_test()
+    run_flashcard_test()
