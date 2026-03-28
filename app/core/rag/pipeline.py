@@ -22,11 +22,13 @@ from app.services.document.parser import extract_text
 from app.services.document.chunker import chunk_text
 from app.core.rag.retriever import retrieve
 from app.core.rag.generator import generate_answer
+from app.core.intent.predictor import predict_intent
 
 # ── Shared services (fixed, deployed — import only, do NOT modify) ─────────
 from app.services.embeddings.embedder import embed_text
 from app.services.embeddings.vector_store import store_embeddings
 import app.services.embeddings.vector_store as _vs   # to read stored_chunks
+
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,12 @@ def run_rag_pipeline(
 
     source = source or _DEFAULT_SOURCE
     _ensure_index_ready(source, force_reindex=force_reindex)
+    try:
+        predicted_intent = predict_intent(query)
+        if predicted_intent:
+            intent = predicted_intent
+    except Exception:
+        pass
 
     logger.info("Retrieving top-%d chunks for: %r", _TOP_K, query)
     context_chunks = retrieve(query, top_k=_TOP_K)

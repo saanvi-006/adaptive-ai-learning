@@ -1,56 +1,25 @@
-from app.core.rag.pipeline import get_all_chunks
-from app.core.adaptive.quiz_engine import build_quiz_from_chunks
-from app.core.adaptive.engine import reset_user, get_user_performance
+from app.core.rag.pipeline import run_rag_pipeline
 
-def run_quiz_adaptive_test():
-    user_id = "test_user"
+def test_intent_pipeline():
     source = "data/uploads/sample.pdf"
 
-    print("\n===== QUIZ + ADAPTIVE FINAL TEST =====\n")
+    print("\n===== INTENT + RAG TEST =====\n")
 
-    # reset user
-    reset_user(user_id)
+    queries = [
+        "What is method overloading?",
+        "Why do we use method overloading?",
+        "Explain garbage collection in Java",
+    ]
 
-    # STEP 1: Load chunks
-    chunks = get_all_chunks(source)
+    for i, query in enumerate(queries, 1):
+        result = run_rag_pipeline(query=query, source=source)
 
-    # STEP 2: Build quiz
-    quiz = build_quiz_from_chunks(chunks)
-
-    print(f"Total Questions Generated: {len(quiz.questions)}")
-
-    # STEP 3: Simulate realistic user performance
-    # Pattern: wrong → wrong → correct → correct → correct → wrong → correct...
-    performance_pattern = [False, False, True, True, True, False, True, False, True, True]
-
-    for i, is_correct in enumerate(performance_pattern):
-        q = quiz.get_next_question()
-        if not q:
-            break
-
-        print(f"\nQ{i+1}: {q['question']}")
-        print("Difficulty:", q["difficulty"])
-
-        # simulate answer
-        user_answer = q["correct_answer"] if is_correct else "wrong_option"
-
-        result = quiz.submit_answer(user_id, user_answer, q)
-
-        print("Correct:", result["is_correct"])
-        print("Next Difficulty:", result["next_difficulty"])
-        print("Explanation:", result["explanation"])
-
-        print("-" * 50)
-
-    # STEP 4: Final performance stats
-    stats = get_user_performance(user_id)
-
-    print("\n===== FINAL USER STATS =====")
-    print(stats)
-
-    print("\n===== QUIZ SUMMARY =====")
-    print(quiz.summary())
+        print(f"Q{i}: {query}")
+        print("Detected Intent:", result["intent"])
+        print("Answer:")
+        print(result["answer"])
+        print("-" * 60)
 
 
 if __name__ == "__main__":
-    run_quiz_adaptive_test()
+    test_intent_pipeline()
