@@ -1,33 +1,46 @@
-from app.services.document.parser import extract_text
-from app.services.document.chunker import chunk_text
-from app.services.embeddings.embedder import embed_text, embed_query
-from app.services.embeddings.vector_store import store_embeddings, retrieve_chunks
+from app.core.adaptive.quiz_engine import build_quiz_from_chunks
 
-file_path = "data/uploads/sample.pdf"
+def run_quiz_test():
+    # 🔹 Fake minimal content (replace later with real PDF chunks)
+    chunks = [
+        "Method overloading allows multiple methods with same name but different parameters.",
+        "It improves code readability and flexibility.",
+        "It can be achieved by changing number of arguments or data types.",
+    ]
 
-text = extract_text(file_path)
+    engine = build_quiz_from_chunks(chunks)
+
+    print("\n===== QUIZ START =====\n")
+
+    for i in range(5):  # only test 5 questions
+        q = engine.get_next_question()
+
+        if not q:
+            print("No more questions.")
+            break
+
+        print(f"Q{i+1}: {q['question']}")
+        for opt in q["options"]:
+            print(opt)
+
+        # ✅ simulate user always selecting first option
+        user_answer = q["options"][0]
+
+        result = engine.submit_answer(
+            user_id="test_user",
+            selected_answer=user_answer,
+            question=q
+        )
+
+        print("Correct:", result["is_correct"])
+        print("Next Difficulty:", result["next_difficulty"])
+        print("Explanation:", result["explanation"])
+        print("-" * 50)
+
+    print("\n===== SUMMARY =====")
+    print(engine.summary())
+    print("Total ques:",len(engine.questions))
 
 
-chunks = chunk_text(text)
-
-
-embeddings = embed_text(chunks)
-store_embeddings(chunks, embeddings)
-
-query = "What is this document about?"
-query_embedding = embed_query(query)
-
-results = retrieve_chunks(query_embedding)
-
-    
-from app.core.routing.router import route_query
-from app.core.rag.pipeline import run_rag_pipeline
-from app.core.hybrid.response_builder import build_response
-
-query = "What is method overloading?"
-print(query)
-intent = route_query(query)
-answer, context = run_rag_pipeline(query, intent)
-response = build_response(query, intent, answer, context)
-
-print(response)
+if __name__ == "__main__":
+    run_quiz_test()
