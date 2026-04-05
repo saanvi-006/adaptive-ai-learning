@@ -1,7 +1,9 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.db.database import engine, Base 
 from app.api.routes import upload, query, explain , summarize
+from app.api.routes import documents, learning, tracking, system
 
 app = FastAPI(
     title="BrainLoop AI Backend",
@@ -27,6 +29,16 @@ app.include_router(upload.router, tags=["Documents"])
 app.include_router(query.router, tags=["AI Interaction"])
 app.include_router(explain.router, tags=["AI Interaction"])
 app.include_router(summarize.router, tags=["AI Interaction"])
+
+app.include_router(documents.router, tags=["Documents"])
+app.include_router(learning.router, tags=["Quiz"])
+app.include_router(tracking.router, tags=["Tracking"])
+app.include_router(system.router, tags=["System"])
+
+@app.on_event("startup")  
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 @app.get("/")
 def home():

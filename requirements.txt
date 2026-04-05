@@ -9,3 +9,9 @@ python-dotenv
 scikit-learn
 pandas
 google-genai
+sqlalchemy>=2.0
+asyncpg
+alembic
+redis
+aioredis
+python-multipart
