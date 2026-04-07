@@ -9,16 +9,16 @@ from app.core.adaptive.engine import adapt_response, get_user_performance
 
 router = APIRouter()
 
+SESSION_KEY = "default"
 
 @router.post("/query")
 async def query_system(request: QueryRequest, background_tasks: BackgroundTasks):
     query = request.query
-    user_id = request.user_id
 
     # -------------------------
     # CACHE CHECK
     # -------------------------
-    cache_key = make_key("query", user=user_id, q=query)
+    cache_key = make_key("query", q=query)
 
     cached = await get_cache(cache_key)
     if cached:
@@ -55,7 +55,7 @@ async def query_system(request: QueryRequest, background_tasks: BackgroundTasks)
         # ADAPTIVE RESPONSE
         # -------------------------
         adapted_answer = adapt_response(
-            user_id=user_id,
+            user_id=SESSION_KEY,
             intent=intent,
             answer=result["answer"]
         )
@@ -69,8 +69,8 @@ async def query_system(request: QueryRequest, background_tasks: BackgroundTasks)
         # -------------------------
         # SAVE PERFORMANCE (ASYNC SAFE)
         # -------------------------
-        snapshot = get_user_performance(user_id)
-        background_tasks.add_task(save_performance, user_id, snapshot)
+        snapshot = get_user_performance(SESSION_KEY)
+        background_tasks.add_task(save_performance, SESSION_KEY, snapshot)
 
         # -------------------------
         # CACHE STORE

@@ -1,25 +1,23 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import os
+import app.core.state as state
 
 from app.api.state import quiz_sessions
-
 from app.core.rag.pipeline import get_all_chunks
 from app.core.adaptive.quiz_engine import build_quiz_from_chunks
 
 router = APIRouter(prefix="/quiz", tags=["Quiz"])
+
+SESSION_KEY = "default"
+current_questions = {}  # stores the last served question per session
 
 
 # -----------------------------
 # Request Models
 # -----------------------------
 
-class StartQuizRequest(BaseModel):
-    user_id: str
-    source: str  # PDF path
-
-
 class AnswerRequest(BaseModel):
-    user_id: str
     selected_option: str
 
 
@@ -27,20 +25,20 @@ class AnswerRequest(BaseModel):
 # START QUIZ
 # -----------------------------
 @router.post("/start")
-def start_quiz(req: StartQuizRequest):
-    user_id = req.user_id
+def start_quiz():
+    source = state.get_document()
+    if not source:
+        raise HTTPException(status_code=400, detail="No PDF uploaded yet. Please upload a PDF first via /upload.")
 
-    # Step 1: get chunks
-    chunks = get_all_chunks(req.source)
+    if not os.path.exists(source):
+        raise HTTPException(status_code=404, detail=f"File not found: '{source}'. Please re-upload the PDF.")
 
-    # Step 2: build quiz (ONLY ONCE)
+    chunks = get_all_chunks(source)
     quiz = build_quiz_from_chunks(chunks)
+    quiz_sessions[SESSION_KEY] = quiz
 
-    # Step 3: store session
-    quiz_sessions[user_id] = quiz
-
-    # Step 4: first question
     first_question = quiz.get_next_question()
+    current_questions[SESSION_KEY] = first_question  # store current question
 
     return {"question": first_question}
 
@@ -49,12 +47,13 @@ def start_quiz(req: StartQuizRequest):
 # NEXT QUESTION
 # -----------------------------
 @router.get("/next")
-def next_question(user_id: str):
-    if user_id not in quiz_sessions:
+def next_question():
+    if SESSION_KEY not in quiz_sessions:
         raise HTTPException(status_code=400, detail="Quiz not started")
 
-    quiz = quiz_sessions[user_id]
+    quiz = quiz_sessions[SESSION_KEY]
     question = quiz.get_next_question()
+    current_questions[SESSION_KEY] = question  # store current question
 
     return {"question": question}
 
@@ -64,16 +63,18 @@ def next_question(user_id: str):
 # -----------------------------
 @router.post("/answer")
 def submit_answer(req: AnswerRequest):
-    user_id = req.user_id
-
-    if user_id not in quiz_sessions:
+    if SESSION_KEY not in quiz_sessions:
         raise HTTPException(status_code=400, detail="Quiz not started")
 
-    quiz = quiz_sessions[user_id]
+    question = current_questions.get(SESSION_KEY)
+    if not question:
+        raise HTTPException(status_code=400, detail="No active question. Call /quiz/start or /quiz/next first.")
 
+    quiz = quiz_sessions[SESSION_KEY]
     result = quiz.submit_answer(
-        user_id=user_id,
-        selected_answer=req.selected_option
+        user_id=SESSION_KEY,
+        selected_answer=req.selected_option,
+        question=question
     )
 
     return result
@@ -83,11 +84,11 @@ def submit_answer(req: AnswerRequest):
 # SUMMARY
 # -----------------------------
 @router.get("/summary")
-def get_summary(user_id: str):
-    if user_id not in quiz_sessions:
+def get_summary():
+    if SESSION_KEY not in quiz_sessions:
         raise HTTPException(status_code=400, detail="Quiz not started")
 
-    quiz = quiz_sessions[user_id]
-    summary = quiz.get_summary()
+    quiz = quiz_sessions[SESSION_KEY]
+    summary = quiz.summary()
 
     return summary

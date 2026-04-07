@@ -5,6 +5,13 @@ from app.api.db.database import engine, Base
 from app.api.routes import upload, query, explain , summarize
 from app.api.routes import documents, learning, tracking, system
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+
 app = FastAPI(
     title="BrainLoop AI Backend",
     version="1.0.0"
