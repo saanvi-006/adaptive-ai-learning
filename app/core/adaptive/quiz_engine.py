@@ -348,10 +348,11 @@ class QuizEngine:
         dict  {is_correct, correct_answer, explanation,
                next_difficulty, performance_snapshot}
         """
-        is_correct: bool = (
-            selected_answer.strip().lower()
-            == question["correct_answer"].strip().lower()
-        )
+        # ✅ FIX: compare only the leading letter (A/B/C/D) to avoid
+        # mismatches caused by different full-text formatting
+        selected = selected_answer.strip()[0].upper()
+        correct  = question["correct_answer"].strip()[0].upper()
+        is_correct: bool = selected == correct
 
         # Delegate ALL performance tracking to engine.py
         snapshot = update_user_performance(

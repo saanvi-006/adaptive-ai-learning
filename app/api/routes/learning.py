@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import re
 import os
 import app.core.state as state
 
@@ -22,6 +23,28 @@ class AnswerRequest(BaseModel):
 
 
 # -----------------------------
+# Helpers
+# -----------------------------
+
+def _normalize_answer(selected: str) -> str:
+    """
+    Normalize the selected answer to just the leading letter (A/B/C/D).
+
+    Handles all frontend formats:
+      "D. D. Informed search"  -> "D"
+      "D. Informed search"     -> "D"
+      "D"                      -> "D"
+      "d"                      -> "D"
+    """
+    selected = selected.strip()
+    match = re.match(r'^([A-Da-d])[\.\s]', selected)
+    if match:
+        return match.group(1).upper()
+    # fallback: just take the first character
+    return selected[0].upper()
+
+
+# -----------------------------
 # START QUIZ
 # -----------------------------
 @router.post("/start")
@@ -38,7 +61,7 @@ def start_quiz():
     quiz_sessions[SESSION_KEY] = quiz
 
     first_question = quiz.get_next_question()
-    current_questions[SESSION_KEY] = first_question  # store current question
+    current_questions[SESSION_KEY] = first_question
 
     return {"question": first_question}
 
@@ -53,7 +76,7 @@ def next_question():
 
     quiz = quiz_sessions[SESSION_KEY]
     question = quiz.get_next_question()
-    current_questions[SESSION_KEY] = question  # store current question
+    current_questions[SESSION_KEY] = question
 
     return {"question": question}
 
@@ -70,13 +93,18 @@ def submit_answer(req: AnswerRequest):
     if not question:
         raise HTTPException(status_code=400, detail="No active question. Call /quiz/start or /quiz/next first.")
 
+    # Normalize whatever format the frontend sends -> single letter "A"/"B"/"C"/"D"
+    normalized = _normalize_answer(req.selected_option)
+
     quiz = quiz_sessions[SESSION_KEY]
     result = quiz.submit_answer(
         user_id=SESSION_KEY,
-        selected_answer=req.selected_option,
-        question=question
+        selected_answer=normalized,
+        question=question,
     )
-
+    print(f"DEBUG >>> raw selected_option: {repr(req.selected_option)}")
+    print(f"DEBUG >>> correct_answer in question: {repr(question['correct_answer'])}")
+    print(f"DEBUG >>> is_correct result: {result['is_correct']}")
     return result
 
 
@@ -89,6 +117,4 @@ def get_summary():
         raise HTTPException(status_code=400, detail="Quiz not started")
 
     quiz = quiz_sessions[SESSION_KEY]
-    summary = quiz.summary()
-
-    return summary
+    return quiz.summary()
