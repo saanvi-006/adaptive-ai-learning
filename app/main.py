@@ -1,6 +1,8 @@
 import os
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.db.database import engine, Base 
 from app.api.routes import upload, query, explain, summarize
 from app.api.routes import documents, learning, tracking, system
@@ -8,6 +10,7 @@ from app.api.routes import flashcards
 
 from dotenv import load_dotenv
 
+# Load environment variables (for local)
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
@@ -17,12 +20,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ✅ FIXED: Removed space from URL
+# ✅ CORS Configuration
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:8080",
-    "https://id-preview--35605c8b-1541-4a1a-9885-f30a2373d7e5.lovable.app"
+    "http://192.168.29.185:8080",
 ]
 
 app.add_middleware(
@@ -33,6 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ Include Routers
 app.include_router(upload.router, tags=["Documents"])
 app.include_router(flashcards.router, tags=["Flashcards"])
 app.include_router(query.router, tags=["AI Interaction"])
@@ -44,16 +48,20 @@ app.include_router(learning.router, tags=["Quiz"])
 app.include_router(tracking.router, tags=["Tracking"])
 app.include_router(system.router, tags=["System"])
 
-# ✅ FIXED: Added try/except so app starts even if DB fails
-@app.on_event("startup")  
+# ✅ NON-BLOCKING STARTUP (CRITICAL FIX)
+@app.on_event("startup")
 async def startup():
+    asyncio.create_task(init_db())
+
+async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         print("✅ Database connected")
     except Exception as e:
-        print(f"⚠️ Database error (app will still start): {e}")
+        print(f"⚠️ Database error: {e}")
 
+# ✅ Health Routes
 @app.get("/")
 def home():
     return {"message": "BrainLoop backend is running 🚀"}
