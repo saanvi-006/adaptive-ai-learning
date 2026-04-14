@@ -13,6 +13,17 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
+
+_GEMINI_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-pro-latest",
+]
+
+# ---------------------------------------------------------------------------
 # Prompt
 # ---------------------------------------------------------------------------
 
@@ -64,22 +75,25 @@ def generate_flashcards(
 
     client = genai.Client(api_key=api_key)
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=_FLASHCARD_PROMPT_TEMPLATE.format(
-                count=target_count,
-                context=context,
-            ),
-        )
+    raw_text = None
+    for model_name in _GEMINI_MODELS:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=_FLASHCARD_PROMPT_TEMPLATE.format(
+                    count=target_count,
+                    context=context,
+                ),
+            )
+            if response.text:
+                raw_text = response.text.strip()
+                logger.info(f"Flashcard response from {model_name}")
+                break
+        except Exception as exc:
+            logger.warning(f"Model {model_name} failed: {exc}")
 
-        raw_text = response.text.strip()
-        logger.debug(f"Raw Gemini response:\n{raw_text[:1000]}")
-
-    except Exception as exc:
-        import traceback
-        logger.error(f"Gemini API call failed: {exc}")
-        traceback.print_exc()
+    if not raw_text:
+        logger.error("All Gemini models failed for flashcard generation")
         return []
 
     flashcards = _parse(raw_text)
@@ -94,10 +108,8 @@ def generate_flashcards(
 # ---------------------------------------------------------------------------
 
 def _parse(raw_text: str) -> List[Dict]:
-    # Strip all markdown code fences (```json, ```JSON, ``` etc.)
     text = re.sub(r"```[a-zA-Z]*", "", raw_text).replace("```", "").strip()
 
-    # Strip any leading prose before the JSON array
     start = text.find("[")
     end = text.rfind("]") + 1
 
