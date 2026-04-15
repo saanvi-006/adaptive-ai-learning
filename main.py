@@ -7,10 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.db.database import engine, Base
 from app.api.routes import upload
 from app.api.routes import query
-# from app.api.routes import explain
-# from app.api.routes import summarize
-# from app.api.routes import documents, learning, tracking, system
-# from app.api.routes import flashcards
+from app.api.routes import explain
+from app.api.routes import summarize
+from app.api.routes import documents, learning, tracking, system
+from app.api.routes import flashcards
 
 api_key = os.getenv("GEMINI_API_KEY")
 
@@ -35,14 +35,14 @@ app.add_middleware(
 )
 
 app.include_router(upload.router, tags=["Documents"])
-# app.include_router(flashcards.router, tags=["Flashcards"])
+app.include_router(flashcards.router, tags=["Flashcards"])
 app.include_router(query.router, tags=["AI Interaction"])
 app.include_router(explain.router, tags=["AI Interaction"])
 app.include_router(summarize.router, tags=["AI Interaction"])
-# app.include_router(documents.router, tags=["Documents"])
-# app.include_router(learning.router, tags=["Quiz"])
-# app.include_router(tracking.router, tags=["Tracking"])
-# app.include_router(system.router, tags=["System"])
+app.include_router(documents.router, tags=["Documents"])
+app.include_router(learning.router, tags=["Quiz"])
+app.include_router(tracking.router, tags=["Tracking"])
+app.include_router(system.router, tags=["System"])
 
 async def init_db():
     try:
