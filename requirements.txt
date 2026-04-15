@@ -11,4 +11,5 @@ pandas
 google-genai
 sqlalchemy>=2.0
 asyncpg
+redis
 torch --index-url https://download.pytorch.org/whl/cpu  
