@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.db.database import engine, Base
-from api.routes import upload, query, explain, summarize
-from api.routes import documents, learning, tracking, system
-from api.routes import flashcards
+from .api.db.database import engine, Base
+from .api.routes import upload, query, explain, summarize
+from .api.routes import documents, learning, tracking, system
+from .api.routes import flashcards
 
 api_key = os.getenv("GEMINI_API_KEY")
 
