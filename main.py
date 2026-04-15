@@ -5,9 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.db.database import engine, Base
-from app.api.routes import upload, query, explain, summarize
-from app.api.routes import documents, learning, tracking, system
-from app.api.routes import flashcards
+# from app.api.routes import upload, query, explain, summarize
+# from app.api.routes import documents, learning, tracking, system
+# from app.api.routes import flashcards
 
 api_key = os.getenv("GEMINI_API_KEY")
 
