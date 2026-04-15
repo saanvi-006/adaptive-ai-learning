@@ -31,15 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(upload.router, tags=["Documents"])
-app.include_router(flashcards.router, tags=["Flashcards"])
-app.include_router(query.router, tags=["AI Interaction"])
-app.include_router(explain.router, tags=["AI Interaction"])
-app.include_router(summarize.router, tags=["AI Interaction"])
-app.include_router(documents.router, tags=["Documents"])
-app.include_router(learning.router, tags=["Quiz"])
-app.include_router(tracking.router, tags=["Tracking"])
-app.include_router(system.router, tags=["System"])
+# app.include_router(upload.router, tags=["Documents"])
+# app.include_router(flashcards.router, tags=["Flashcards"])
+# app.include_router(query.router, tags=["AI Interaction"])
+# app.include_router(explain.router, tags=["AI Interaction"])
+# app.include_router(summarize.router, tags=["AI Interaction"])
+# app.include_router(documents.router, tags=["Documents"])
+# app.include_router(learning.router, tags=["Quiz"])
+# app.include_router(tracking.router, tags=["Tracking"])
+# app.include_router(system.router, tags=["System"])
 
 async def init_db():
     try:
