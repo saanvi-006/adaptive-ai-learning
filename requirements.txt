@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pymupdf
+sentence-transformers
 faiss-cpu
 numpy
 python-multipart
@@ -11,9 +12,4 @@ sqlalchemy>=2.0
 asyncpg
 redis
 
-# force CPU torch
 torch==2.1.2+cpu --index-url https://download.pytorch.org/whl/cpu
-
-# prevent reinstalling torch with CUDA
-transformers
-sentence-transformers --no-deps
