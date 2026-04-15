@@ -93,9 +93,6 @@ def get_all_chunks(
     return chunks
 
 
-# ---------------------------------------------------------------------------
-# INDEXING
-# ---------------------------------------------------------------------------
 
 def _ensure_index_ready(source: str, force_reindex: bool = False) -> None:
     global _indexed_source
