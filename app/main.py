@@ -1,5 +1,6 @@
 import os
 import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,19 +9,22 @@ from api.routes import upload, query, explain, summarize
 from api.routes import documents, learning, tracking, system
 from api.routes import flashcards
 
-from dotenv import load_dotenv
-
-# Load environment variables (for local)
-load_dotenv()
-
 api_key = os.getenv("GEMINI_API_KEY")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+  
+    asyncio.create_task(init_db())
+    yield
+    
+    await engine.dispose()
 
 app = FastAPI(
     title="BrainLoop AI Backend",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan  
 )
-
-# ✅ CORS Configuration
 
 
 app.add_middleware(
@@ -31,35 +35,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Include Routers
+
 app.include_router(upload.router, tags=["Documents"])
 app.include_router(flashcards.router, tags=["Flashcards"])
 app.include_router(query.router, tags=["AI Interaction"])
 app.include_router(explain.router, tags=["AI Interaction"])
 app.include_router(summarize.router, tags=["AI Interaction"])
-
 app.include_router(documents.router, tags=["Documents"])
 app.include_router(learning.router, tags=["Quiz"])
 app.include_router(tracking.router, tags=["Tracking"])
 app.include_router(system.router, tags=["System"])
 
-# ✅ NON-BLOCKING STARTUP (CRITICAL FIX)
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(init_db())
-
 async def init_db():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        print("✅ Database connected")
+        print("Database connected")
     except Exception as e:
-        print(f"⚠️ Database error: {e}")
+        print(f"Database error: {e}")
 
-# ✅ Health Routes
+
 @app.get("/")
 def home():
-    return {"message": "BrainLoop backend is running 🚀"}
+    return {"message": "BrainLoop backend is running."}
 
 @app.get("/health")
 def health():
