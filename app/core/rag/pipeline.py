@@ -9,9 +9,6 @@ from app.services.document.chunker import chunk_text
 from app.core.rag.retriever import retrieve
 from app.core.rag.generator import generate_answer
 from app.core.intent.predictor import predict_intent
-
-from app.services.embeddings.embedder import embed_text
-from app.services.embeddings.vector_store import store_embeddings
 import app.services.embeddings.vector_store as _vs
 
 
@@ -105,6 +102,10 @@ def _ensure_index_ready(source: str, force_reindex: bool = False) -> None:
         return
 
     try:
+        # Lazy import (VERY IMPORTANT)
+        from app.services.embeddings.embedder import embed_text
+        from app.services.embeddings.vector_store import store_embeddings
+
         raw_text = extract_text(source)
         if not raw_text or not raw_text.strip():
             logger.warning("Empty document")
@@ -119,6 +120,9 @@ def _ensure_index_ready(source: str, force_reindex: bool = False) -> None:
         if not chunks:
             logger.warning("No chunks created")
             return
+
+        # 🔥 Reduce memory pressure (IMPORTANT)
+        chunks = chunks[:50]   # limit chunks (prevents crash)
 
         embeddings = embed_text(chunks)
 
