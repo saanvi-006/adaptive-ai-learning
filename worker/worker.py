@@ -41,3 +41,7 @@ app = FastAPI()
 @app.get("/")
 def health():
     return {"status": "ok"}
+
+@app.post("/process")
+async def process_document():
+    return {"status": "received"}
