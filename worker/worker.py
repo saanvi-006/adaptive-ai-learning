@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+"""from fastapi import FastAPI, UploadFile, File
 import tempfile
 import pickle
 
@@ -31,3 +31,13 @@ async def process_document(file: UploadFile = File(...)):
 
     except Exception as e:
         return {"error": str(e)}
+        """
+    
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def health():
+    return {"status": "ok"}
