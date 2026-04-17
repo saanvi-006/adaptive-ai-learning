@@ -1,14 +1,16 @@
-model = None
+import os
+import requests
 
-def get_model():
-    global model
-    if model is None:
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-    return model   
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+HF_TOKEN = os.environ.get("HF_TOKEN")  # add this in Render env vars
 
 def embed_text(chunks):
-    return get_model().encode(chunks).tolist()   # 🔥 important
+    response = requests.post(
+        API_URL,
+        headers={"Authorization": f"Bearer {HF_TOKEN}"},
+        json={"inputs": chunks}
+    )
+    return response.json()
 
 def embed_query(query: str):
-    return get_model().encode([query])[0].tolist()
+    return embed_text([query])[0]

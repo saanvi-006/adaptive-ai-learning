@@ -12,3 +12,4 @@ sqlalchemy>=2.0
 asyncpg
 redis
 torch
+httpx
