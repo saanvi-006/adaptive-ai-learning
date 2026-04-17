@@ -8,7 +8,7 @@ def get_model():
     return model   
 
 def embed_text(chunks):
-    return get_model().encode(chunks)
+    return get_model().encode(chunks).tolist()   # 🔥 important
 
 def embed_query(query: str):
-    return get_model().encode([query])[0]
+    return get_model().encode([query])[0].tolist()
