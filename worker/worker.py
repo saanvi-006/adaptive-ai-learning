@@ -52,7 +52,11 @@ async def process_document(file: UploadFile = File(...)):
         import traceback
         traceback.print_exc()
         return {"error": str(e)}
-
+@app.get("/debug-state")
+def debug_state():
+    import app.core.state as state
+    doc = state.get_document()
+    return {"document_path": doc}
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
