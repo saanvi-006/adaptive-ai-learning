@@ -26,6 +26,24 @@ def embed_in_batches(chunks, batch_size=4):
 def health():
     return {"status": "ok"}
 
+@app.get("/get-embeddings")
+def get_embeddings():
+    import app.services.embeddings.vector_store as vs
+    if not vs.stored_chunks:
+        return {"chunks": [], "embeddings": []}
+    
+    # Return chunks and embeddings
+    import numpy as np
+    embeddings = []
+    if vs.index is not None:
+        # reconstruct from faiss
+        embeddings = vs.index.reconstruct_n(0, vs.index.ntotal).tolist()
+    
+    return {
+        "chunks": vs.stored_chunks,
+        "embeddings": embeddings
+    }
+
 @app.post("/process")
 async def process_document(file: UploadFile = File(...)):
     global _chunks_cache, _embeddings_cache

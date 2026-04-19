@@ -57,6 +57,7 @@ def start_quiz():
         raise HTTPException(status_code=404, detail=f"File not found: '{source}'. Please re-upload the PDF.")
 
     chunks = get_all_chunks(source)
+    print("Chunks received in quiz:",len(chunks))
     quiz = build_quiz_from_chunks(chunks)
     quiz_sessions[SESSION_KEY] = quiz
 
