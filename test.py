@@ -1,8 +1,18 @@
-import asyncio
-from app.api.db.database import engine
+import os
+from dotenv import load_dotenv
+from google import genai
 
-async def test():
-    async with engine.begin() as conn:
-        print("✅ DB works")
+load_dotenv()
 
-asyncio.run(test())
+api_key = os.getenv("GEMINI_API_KEY")
+print("API KEY FOUND:", bool(api_key))
+
+client = genai.Client(api_key=api_key)
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="Explain what is recursion in 2 lines."
+)
+
+print("\n=== GEMINI RESPONSE ===\n")
+print(response.text)

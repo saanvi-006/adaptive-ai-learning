@@ -6,6 +6,7 @@ from app.api.cache.cache_manager import get_cache, set_cache, make_key
 from app.api.tasks.performance_task import save_performance
 
 from app.core.adaptive.engine import adapt_response, get_user_performance
+import traceback
 
 router = APIRouter()
 
@@ -80,6 +81,7 @@ async def query_system(request: QueryRequest, background_tasks: BackgroundTasks)
         return response
 
     except Exception as e:
+        traceback.print_exc()
         return {
             "answer": f"Error: {str(e)}",
             "source": "N/A",
