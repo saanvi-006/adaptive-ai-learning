@@ -8,7 +8,6 @@ import app.core.state as state
 
 app = FastAPI()
 
-# ✅ Consistent path used everywhere
 EMBEDDINGS_PATH = "embeddings.pkl"
 
 def embed_in_batches(chunks, batch_size=4):
@@ -20,6 +19,19 @@ def embed_in_batches(chunks, batch_size=4):
         all_embeddings.extend(emb)
     return all_embeddings
 
+# ✅ Auto-load embeddings into vector store on startup
+@app.on_event("startup")
+def load_embeddings_on_startup():
+    if os.path.exists(EMBEDDINGS_PATH):
+        try:
+            with open(EMBEDDINGS_PATH, "rb") as f:
+                chunks, embeddings = pickle.load(f)
+            from app.services.embeddings.vector_store import store_embeddings
+            store_embeddings(chunks, embeddings)
+            print(f"✅ Loaded {len(chunks)} chunks into vector store on startup")
+        except Exception as e:
+            print(f"⚠️ Could not load embeddings on startup: {e}")
+
 @app.get("/")
 def health():
     return {"status": "ok"}
@@ -27,14 +39,12 @@ def health():
 @app.post("/process")
 async def process_document(file: UploadFile = File(...)):
     try:
-        # ✅ Save to permanent path
         os.makedirs("data/uploads", exist_ok=True)
         path = f"data/uploads/{file.filename}"
 
         with open(path, "wb") as f:
             f.write(await file.read())
 
-        # ✅ Set document in state
         state.set_document(path)
 
         text = extract_text(path)
@@ -45,9 +55,12 @@ async def process_document(file: UploadFile = File(...)):
 
         embeddings = embed_in_batches(chunks, batch_size=4)
 
-        # ✅ Save embeddings to consistent path
         with open(EMBEDDINGS_PATH, "wb") as f:
             pickle.dump((chunks, embeddings), f)
+
+        # ✅ Also load into vector store immediately after processing
+        from app.services.embeddings.vector_store import store_embeddings
+        store_embeddings(chunks, embeddings)
 
         return {"status": "processed", "chunks": len(chunks)}
 
@@ -58,13 +71,12 @@ async def process_document(file: UploadFile = File(...)):
 
 @app.get("/debug-state")
 def debug_state():
+    import app.services.embeddings.vector_store as vs
     doc = state.get_document()
-    import os
-    embeddings_exist = os.path.exists(EMBEDDINGS_PATH)
     return {
         "document_path": doc,
-        "embeddings_exist": embeddings_exist,
-        "embeddings_path": EMBEDDINGS_PATH
+        "embeddings_exist": os.path.exists(EMBEDDINGS_PATH),
+        "chunks_in_vector_store": len(vs.stored_chunks)
     }
 
 if __name__ == "__main__":
