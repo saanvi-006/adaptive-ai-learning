@@ -4,14 +4,17 @@ import os
 
 from app.services.document.parser import extract_text
 from app.services.document.chunker import chunk_text
+from app.services.embeddings.vector_store import store_embeddings
+from app.services.embeddings.embedder import embed_text
 import app.core.state as state
 
 app = FastAPI()
 
-EMBEDDINGS_PATH = "embeddings.pkl"
+# ✅ In-memory storage — persists during session
+_chunks_cache = []
+_embeddings_cache = []
 
 def embed_in_batches(chunks, batch_size=4):
-    from app.services.embeddings.embedder import embed_text
     all_embeddings = []
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i:i + batch_size]
@@ -19,47 +22,38 @@ def embed_in_batches(chunks, batch_size=4):
         all_embeddings.extend(emb)
     return all_embeddings
 
-# ✅ Auto-load embeddings into vector store on startup
-@app.on_event("startup")
-def load_embeddings_on_startup():
-    if os.path.exists(EMBEDDINGS_PATH):
-        try:
-            with open(EMBEDDINGS_PATH, "rb") as f:
-                chunks, embeddings = pickle.load(f)
-            from app.services.embeddings.vector_store import store_embeddings
-            store_embeddings(chunks, embeddings)
-            print(f"✅ Loaded {len(chunks)} chunks into vector store on startup")
-        except Exception as e:
-            print(f"⚠️ Could not load embeddings on startup: {e}")
-
 @app.get("/")
 def health():
     return {"status": "ok"}
 
 @app.post("/process")
 async def process_document(file: UploadFile = File(...)):
+    global _chunks_cache, _embeddings_cache
     try:
+        # ✅ Save to temp path
         os.makedirs("data/uploads", exist_ok=True)
         path = f"data/uploads/{file.filename}"
-
         with open(path, "wb") as f:
             f.write(await file.read())
 
+        # ✅ Set state
         state.set_document(path)
 
+        # ✅ Extract and chunk
         text = extract_text(path)
         chunks = chunk_text(text)[:5]
 
         if not chunks:
             return {"error": "No content"}
 
+        # ✅ Embed
         embeddings = embed_in_batches(chunks, batch_size=4)
 
-        with open(EMBEDDINGS_PATH, "wb") as f:
-            pickle.dump((chunks, embeddings), f)
+        # ✅ Store in memory cache
+        _chunks_cache = chunks
+        _embeddings_cache = embeddings
 
-        # ✅ Also load into vector store immediately after processing
-        from app.services.embeddings.vector_store import store_embeddings
+        # ✅ Load into vector store immediately
         store_embeddings(chunks, embeddings)
 
         return {"status": "processed", "chunks": len(chunks)}
@@ -75,7 +69,7 @@ def debug_state():
     doc = state.get_document()
     return {
         "document_path": doc,
-        "embeddings_exist": os.path.exists(EMBEDDINGS_PATH),
+        "chunks_in_memory": len(_chunks_cache),
         "chunks_in_vector_store": len(vs.stored_chunks)
     }
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import pickle
 from typing import Any
 
 from app.core.rag.retriever import retrieve
@@ -18,9 +16,6 @@ _TOP_K = 3
 
 # Tracks indexed source
 _indexed_source: str | None = None
-
-# ✅ Fixed path — matches where worker.py saves embeddings
-EMBEDDINGS_PATH = "embeddings.pkl"
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +49,7 @@ def run_rag_pipeline(
     except Exception:
         pass
 
-    # Ensure FAISS index is ready
+    # Ensure index is ready
     _ensure_index_ready(source, force_reindex)
 
     # Retrieve relevant chunks
@@ -83,7 +78,6 @@ def get_all_chunks(
     _ensure_index_ready(source, force_reindex)
 
     chunks = list(_vs.stored_chunks)
-
     return chunks if chunks else []
 
 
@@ -94,29 +88,16 @@ def get_all_chunks(
 def _ensure_index_ready(source: str, force_reindex: bool = False) -> None:
     global _indexed_source
 
-    # ✅ Always reload if chunks are empty (e.g. after Render restart)
     chunks_empty = not _vs.stored_chunks
+
     if not force_reindex and _indexed_source == source and not chunks_empty:
         return
 
-    try:
-        if not os.path.exists(EMBEDDINGS_PATH):
-            logger.warning("Embeddings not ready yet (worker may still be processing)")
-            return
-
-        with open(EMBEDDINGS_PATH, "rb") as f:
-            chunks, embeddings = pickle.load(f)
-
-        if not chunks or not embeddings:
-            logger.warning("Empty embeddings file")
-            return
-
-        # ✅ Store in vector store
-        from app.services.embeddings.vector_store import store_embeddings
-        store_embeddings(chunks, embeddings)
-
+    # ✅ If vector store already has chunks loaded by worker, just mark as indexed
+    if _vs.stored_chunks:
         _indexed_source = source
-        logger.info(f"Index ready with {len(chunks)} chunks")
+        logger.info(f"Index already loaded with {len(_vs.stored_chunks)} chunks")
+        return
 
-    except Exception as e:
-        logger.error(f"Failed to load embeddings: {e}")
+    # ✅ Vector store is empty — /process hasn't been called yet
+    logger.warning("Vector store is empty — /process must be called first")
